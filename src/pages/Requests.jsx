@@ -13,10 +13,17 @@ import {
   orderBy
 } from 'firebase/firestore';
 
+import ScheduleModal from '../components/ScheduleModal';
+import { downloadICS } from '../utils/calendarUtils';
+
 const Requests = () => {
   const { currentUser } = useAuth();
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
+  
+  // State for scheduling modal
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedRequest, setSelectedRequest] = useState(null);
   
   useEffect(() => {
     if (!currentUser) return;
@@ -54,6 +61,23 @@ const Requests = () => {
       console.error("Error updating request status:", err);
       alert("Failed to update request. Please try again.");
     }
+  };
+
+  const handleOpenSchedule = (req) => {
+    setSelectedRequest(req);
+    setIsModalOpen(true);
+  };
+
+  const handleAddToCalendar = (req) => {
+    if (!req.schedule) return;
+    
+    downloadICS({
+      title: req.schedule.title,
+      description: req.schedule.description || `Class session for ${req.skillWanted}`,
+      startTime: req.schedule.startTime,
+      endTime: req.schedule.endTime,
+      location: req.schedule.meetingLink || 'Online'
+    });
   };
 
   const pendingRequests = requests.filter(r => r.status === 'pending');
@@ -121,34 +145,80 @@ const Requests = () => {
 
       <div>
         <h3 style={{ fontSize: '1.25rem', marginBottom: '1.5rem', color: 'var(--color-text-secondary)' }}>
-          Past Connections
+          Active Connections & Schedules
         </h3>
         {pastRequests.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--color-text-muted)', border: '1px dashed var(--color-border)', borderRadius: 'var(--radius-md)' }}>
-            No past requests yet.
+            No active connections yet.
           </div>
         ) : (
           <div className="flex" style={{ flexDirection: 'column', gap: '1rem' }}>
             {pastRequests.map(req => (
-              <div key={req.id} className="card flex items-center justify-between" style={{ padding: '1.25rem', opacity: 0.8 }}>
-                <div>
-                  <h4 style={{ fontSize: '1.1rem', marginBottom: '0.25rem' }}>{req.senderName}</h4>
-                  <p style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)' }}>
-                    Exchange: {req.skillWanted} for {req.skillOffered}
-                  </p>
+              <div key={req.id} className="card" style={{ padding: '1.25rem' }}>
+                <div className="flex items-center justify-between" style={{ marginBottom: req.schedule ? '1rem' : 0 }}>
+                  <div>
+                    <h4 style={{ fontSize: '1.1rem', marginBottom: '0.25rem' }}>{req.senderName}</h4>
+                    <p style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)' }}>
+                      Exchange: {req.skillWanted} for {req.skillOffered}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    {req.status === 'accepted' ? (
+                      <>
+                        {!req.schedule && (
+                          <button className="btn btn-outline" style={{ fontSize: '0.8rem', padding: '0.4rem 0.8rem' }} onClick={() => handleOpenSchedule(req)}>
+                            Schedule Class
+                          </button>
+                        )}
+                        <span className="badge badge-green">Connected</span>
+                      </>
+                    ) : (
+                      <span className="badge badge-gray">Rejected</span>
+                    )}
+                  </div>
                 </div>
-                <div>
-                  {req.status === 'accepted' ? (
-                    <span className="badge badge-green">Accepted</span>
-                  ) : (
-                    <span className="badge badge-gray">Rejected</span>
-                  )}
-                </div>
+
+                {req.schedule && (
+                  <div style={{ backgroundColor: 'var(--color-bg-start)', padding: '1rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border)' }}>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <div style={{ textAlign: 'center', minWidth: '60px', padding: '0.5rem', background: 'white', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border)' }}>
+                          <div style={{ fontSize: '0.7rem', textTransform: 'uppercase', color: 'var(--color-primary)', fontWeight: 'bold' }}>
+                            {new Date(req.schedule.startTime).toLocaleString('default', { month: 'short' })}
+                          </div>
+                          <div style={{ fontSize: '1.25rem', fontWeight: 'bold' }}>
+                            {new Date(req.schedule.startTime).getDate()}
+                          </div>
+                        </div>
+                        <div>
+                          <div style={{ fontWeight: '600', fontSize: '1rem', marginBottom: '0.25rem' }}>Next Session</div>
+                          <div style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)' }}>
+                            {new Date(req.schedule.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • {req.schedule.meetingLink ? <a href={req.schedule.meetingLink} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--color-primary)' }}>Join Link</a> : 'Wait for link'}
+                          </div>
+                        </div>
+                      </div>
+                      <button 
+                        className="btn btn-outline flex items-center gap-1" 
+                        style={{ fontSize: '0.75rem', padding: '0.3rem 0.6rem' }}
+                        onClick={() => handleAddToCalendar(req)}
+                      >
+                        <Calendar size={14} /> Add to Zoho
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
           </div>
         )}
       </div>
+
+      <ScheduleModal 
+        isOpen={isModalOpen} 
+        onClose={() => setIsModalOpen(false)} 
+        request={selectedRequest}
+        senderName={selectedRequest?.senderName}
+      />
     </div>
   );
 };
