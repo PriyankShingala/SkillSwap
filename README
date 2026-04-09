@@ -1,0 +1,156 @@
+# 🚀 SkillSwap — Learn. Teach. Grow Together
+
+SkillSwap is a peer-to-peer skill exchange platform that enables users to **learn new skills without money** by exchanging knowledge with others.
+
+Built for a hackathon, this project focuses on **community-driven learning** where users can both teach and learn based on their strengths.
+
+---
+
+## 🌟 Problem Statement
+
+Students often face:
+
+* High cost of learning platforms
+* Lack of personalized mentorship
+* Limited opportunities for collaborative learning
+
+At the same time, many students **already possess valuable skills** but lack a platform to share them.
+
+---
+
+## 💡 Solution
+
+SkillSwap solves this by enabling:
+
+* Skill-based matching between users
+* Peer-to-peer knowledge exchange
+* Learning without financial barriers
+
+Users can:
+
+* Offer skills they know
+* Request skills they want to learn
+* Connect and collaborate easily
+
+---
+
+## 🧩 Features
+
+### 🔐 Authentication
+
+* User signup and login
+
+### 👤 User Profile
+
+* Add skills offered
+* Add skills wanted
+* Availability selection
+* Short bio
+
+### 🔍 Explore Users
+
+* Browse users based on skills
+* Search/filter functionality
+* View profiles in card layout
+
+### 🤝 Request System
+
+* Send connection requests
+* Accept / reject requests
+* Track request status
+
+---
+
+## 🛠️ Tech Stack
+
+**Frontend:**
+
+* React.js
+* Tailwind CSS
+
+**Backend:**
+
+* Firebase (Authentication + Firestore)
+
+**Deployment:**
+
+* Vercel / Netlify
+
+---
+
+## ⚙️ How It Works
+
+1. User signs up and creates a profile
+2. Adds skills they offer and want
+3. Explores other users
+4. Sends connection request
+5. Accepts request
+6. Connects and learns (online/offline)
+
+---
+
+## 📸 Demo Flow
+
+* Signup → Profile Creation
+* Add Skills → Explore Users
+* Send Request → Accept → Start Learning
+
+---
+
+## 🚀 Getting Started
+
+### 1. Clone the repository
+
+```bash
+git clone https://github.com/your-username/skillswap.git
+cd skillswap
+```
+
+### 2. Install dependencies
+
+```bash
+npm install
+```
+
+### 3. Run the app
+
+```bash
+npm run dev
+```
+
+---
+
+## 🔮 Future Scope
+
+* AI-based smart matching
+* In-app chat system
+* Skill verification badges
+* College integrations
+* Gamification (rewards, streaks)
+
+---
+
+## 👥 Team ByteForge
+
+* **Akshit Rajkotia** — Team Lead / Full-Stack
+* **Priyank Shingala** — Frontend Developer
+* **Maulik Darji** — Backend & Firebase
+* **Rudra Patel** — Integration & Logic
+* **Heliben Patel** — UI/UX Designer
+* **Smit Shah** — Testing & Presentation
+
+---
+
+## 🙌 Acknowledgements
+
+Built during a hackathon with the goal of making learning **accessible, collaborative, and practical**.
+
+---
+
+## 📬 Contact
+
+Feel free to reach out for collaboration or feedback!
+
+---
+
+⭐ If you like this project, consider giving it a star!
