@@ -1,54 +1,73 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { LogIn, UserPlus } from 'lucide-react';
+import { auth, db } from '../firebase';
+import { 
+  createUserWithEmailAndPassword, 
+  signInWithEmailAndPassword,
+  sendEmailVerification
+} from 'firebase/auth';
+import { doc, setDoc } from 'firebase/firestore';
 
 const Auth = ({ type }) => {
   const isLogin = type === 'login';
+  const navigate = useNavigate();
 
   const [formData, setFormData] = useState({ name: '', email: '', password: '' });
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [verificationSent, setVerificationSent] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setLoading(true);
 
     try {
-      const storedUsers = JSON.parse(localStorage.getItem('users') || '[]');
-
       if (isLogin) {
-        const user = storedUsers.find(u => u.email === formData.email && u.password === formData.password);
-        if (user) {
-          localStorage.setItem('isAuthenticated', 'true');
-          localStorage.setItem('currentUser', JSON.stringify(user));
-          window.location.href = '/explore';
-        } else {
-          setError('No account found. Check your credentials or sign up first.');
-        }
+        await signInWithEmailAndPassword(auth, formData.email, formData.password);
+        navigate('/explore');
       } else {
-        if (storedUsers.some(u => u.email === formData.email)) {
-          setError('This email is already registered. Please log in instead.');
-          return;
-        }
+        const userCredential = await createUserWithEmailAndPassword(
+          auth, 
+          formData.email, 
+          formData.password
+        );
+        const user = userCredential.user;
+
+        // Send verification email
+        await sendEmailVerification(user);
+
+        // Initialize user document in Firestore
         const selectedRole = localStorage.getItem('selectedRole') || 'student';
-        const newUser = {
-          ...formData,
-          id: Date.now(),
+        await setDoc(doc(db, 'users', user.uid), {
+          uid: user.uid,
+          name: formData.name,
+          email: formData.email,
           role: selectedRole,
           skillsOffered: [],
           skillsWanted: [],
           bio: '',
-          availability: 'Flexible'
-        };
+          availability: 'Flexible',
+          createdAt: new Date().toISOString()
+        });
+
         localStorage.removeItem('selectedRole');
-        storedUsers.push(newUser);
-        localStorage.setItem('users', JSON.stringify(storedUsers));
-        localStorage.setItem('isAuthenticated', 'true');
-        localStorage.setItem('currentUser', JSON.stringify(newUser));
-        window.location.href = '/onboarding';
+        setVerificationSent(true);
       }
     } catch (err) {
-      setError('Something went wrong. Please try again.');
       console.error(err);
+      if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password') {
+        setError('Invalid email or password.');
+      } else if (err.code === 'auth/email-already-in-use') {
+        setError('This email is already registered.');
+      } else if (err.code === 'auth/weak-password') {
+        setError('Password should be at least 6 characters.');
+      } else {
+        setError('Something went wrong. Please try again.');
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -81,55 +100,79 @@ const Auth = ({ type }) => {
         )}
 
         {/* Form */}
-        <form onSubmit={handleSubmit}>
-          {!isLogin && (
+        {verificationSent ? (
+          <div className="text-center animate-fade-in" style={{ padding: '1rem 0' }}>
+            <div style={{ backgroundColor: 'var(--color-bg-start)', color: 'var(--color-primary)', padding: '1.5rem', borderRadius: 'var(--radius-lg)', marginBottom: '1.5rem' }}>
+              <h3 style={{ fontSize: '1.25rem', marginBottom: '0.5rem' }}>Verification Sent!</h3>
+              <p style={{ fontSize: '0.9rem', color: 'var(--color-text-secondary)', lineHeight: '1.5' }}>
+                We've sent a verification email to <strong>{formData.email}</strong>. 
+                Please check your inbox and click the link to verify your account.
+              </p>
+            </div>
+            <button 
+              className="btn btn-primary" 
+              style={{ width: '100%' }}
+              onClick={() => window.location.reload()}
+            >
+              Back to Login
+            </button>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit}>
+            {!isLogin && (
+              <div className="input-group">
+                <label className="input-label" htmlFor="name">Full Name</label>
+                <input
+                  type="text"
+                  id="name"
+                  name="name"
+                  className="input-field"
+                  placeholder="Rahul Sharma"
+                  value={formData.name}
+                  onChange={handleChange}
+                  required
+                />
+              </div>
+            )}
+
             <div className="input-group">
-              <label className="input-label" htmlFor="name">Full Name</label>
+              <label className="input-label" htmlFor="email">Email Address</label>
               <input
-                type="text"
-                id="name"
-                name="name"
+                type="email"
+                id="email"
+                name="email"
                 className="input-field"
-                placeholder="Rahul Sharma"
-                value={formData.name}
+                placeholder="you@college.edu.in"
+                value={formData.email}
                 onChange={handleChange}
                 required
               />
             </div>
-          )}
 
-          <div className="input-group">
-            <label className="input-label" htmlFor="email">Email Address</label>
-            <input
-              type="email"
-              id="email"
-              name="email"
-              className="input-field"
-              placeholder="you@college.edu.in"
-              value={formData.email}
-              onChange={handleChange}
-              required
-            />
-          </div>
+            <div className="input-group" style={{ marginBottom: '2rem' }}>
+              <label className="input-label" htmlFor="password">Password</label>
+              <input
+                type="password"
+                id="password"
+                name="password"
+                className="input-field"
+                placeholder="••••••••"
+                value={formData.password}
+                onChange={handleChange}
+                required
+              />
+            </div>
 
-          <div className="input-group" style={{ marginBottom: '2rem' }}>
-            <label className="input-label" htmlFor="password">Password</label>
-            <input
-              type="password"
-              id="password"
-              name="password"
-              className="input-field"
-              placeholder="••••••••"
-              value={formData.password}
-              onChange={handleChange}
-              required
-            />
-          </div>
-
-          <button type="submit" className="btn btn-primary" style={{ width: '100%', padding: '0.875rem', fontSize: '1rem' }}>
-            {isLogin ? 'Sign In' : 'Sign Up'}
-          </button>
-        </form>
+            <button 
+              type="submit" 
+              className="btn btn-primary" 
+              style={{ width: '100%', padding: '0.875rem', fontSize: '1rem' }}
+              disabled={loading}
+            >
+              {loading ? 'Processing...' : (isLogin ? 'Sign In' : 'Sign Up')}
+            </button>
+          </form>
+        )}
 
         {/* Switch link */}
         <div className="text-center" style={{ marginTop: '1.5rem', fontSize: '0.9rem', color: 'var(--color-text-secondary)' }}>

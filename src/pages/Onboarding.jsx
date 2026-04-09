@@ -1,39 +1,41 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowRight, Book, Star } from 'lucide-react';
+import { doc, updateDoc } from 'firebase/firestore';
+import { db } from '../firebase';
+import { useAuth } from '../context/AuthContext';
 
 const Onboarding = () => {
   const navigate = useNavigate();
+  const { currentUser } = useAuth();
   const [step, setStep] = useState(1);
   const [skillsOffered, setSkillsOffered] = useState('');
   const [skillsWanted, setSkillsWanted] = useState('');
   const [bio, setBio] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleNext = () => {
+  const handleNext = async () => {
     if (step < 3) {
       setStep(step + 1);
     } else {
-      // Get data and sync with localStorage
-      const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
-      const updatedUser = {
-        ...currentUser,
-        skillsOffered: skillsOffered.split(',').map(s => s.trim()).filter(s => s),
-        skillsWanted: skillsWanted.split(',').map(s => s.trim()).filter(s => s),
-        bio: bio
-      };
+      setLoading(true);
+      try {
+        if (!currentUser) throw new Error('No user logged in');
 
-      // Update current user
-      localStorage.setItem('currentUser', JSON.stringify(updatedUser));
+        const userRef = doc(db, 'users', currentUser.uid);
+        await updateDoc(userRef, {
+          skillsOffered: skillsOffered.split(',').map(s => s.trim()).filter(s => s),
+          skillsWanted: skillsWanted.split(',').map(s => s.trim()).filter(s => s),
+          bio: bio
+        });
 
-      // Sync with users array
-      const users = JSON.parse(localStorage.getItem('users') || '[]');
-      const userIndex = users.findIndex(u => u.id === updatedUser.id);
-      if (userIndex !== -1) {
-        users[userIndex] = updatedUser;
-        localStorage.setItem('users', JSON.stringify(users));
+        navigate('/profile');
+      } catch (err) {
+        console.error("Error updating profile:", err);
+        alert('Failed to save profile. Please try again.');
+      } finally {
+        setLoading(false);
       }
-
-      navigate('/profile');
     }
   };
 
@@ -123,8 +125,12 @@ const Onboarding = () => {
             </button>
           ) : <div></div>}
           
-          <button className="btn btn-primary flex items-center gap-2" onClick={handleNext}>
-            {step === 3 ? 'Complete Setup' : 'Next Step'} <ArrowRight size={18} />
+          <button 
+            className="btn btn-primary flex items-center gap-2" 
+            onClick={handleNext}
+            disabled={loading}
+          >
+            {loading ? 'Saving...' : (step === 3 ? 'Complete Setup' : 'Next Step')} <ArrowRight size={18} />
           </button>
         </div>
       </div>

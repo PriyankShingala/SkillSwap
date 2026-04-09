@@ -1,36 +1,51 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { User, Settings, Save, X } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import { db } from '../firebase';
+import { doc, updateDoc } from 'firebase/firestore';
 
 const Profile = () => {
+  const { currentUser, userData: contextUserData } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
-  const [profileData, setProfileData] = useState(() => {
-    const saved = localStorage.getItem('currentUser');
-    return saved ? JSON.parse(saved) : {
-      name: 'Rohan Mehta',
-      email: 'rohan.mehta@college.edu.in',
-      bio: 'B.Tech student in Computer Science. Huge tech geek, building random side-projects. Always up for a quick chai and tech discussions!',
-      availability: 'Evenings',
-      skillsOffered: ['React', 'CSS', 'HTML'],
-      skillsWanted: ['Python', 'Figma']
-    };
+  const [loading, setLoading] = useState(false);
+  const [profileData, setProfileData] = useState({
+    name: '',
+    email: '',
+    bio: '',
+    availability: 'Flexible',
+    skillsOffered: [],
+    skillsWanted: []
   });
+
+  useEffect(() => {
+    if (contextUserData) {
+      setProfileData(contextUserData);
+    }
+  }, [contextUserData]);
 
   const [newSkillOffered, setNewSkillOffered] = useState('');
   const [newSkillWanted, setNewSkillWanted] = useState('');
 
-  const handleSave = (e) => {
-    e.preventDefault();
-    setIsEditing(false);
+  const handleSave = async (e) => {
+    if (e) e.preventDefault();
+    setLoading(true);
     
-    // Update currentColor in localStorage
-    localStorage.setItem('currentUser', JSON.stringify(profileData));
-
-    // Sync with users array in localStorage
-    const users = JSON.parse(localStorage.getItem('users') || '[]');
-    const userIndex = users.findIndex(u => u.id === profileData.id);
-    if (userIndex !== -1) {
-      users[userIndex] = profileData;
-      localStorage.setItem('users', JSON.stringify(users));
+    try {
+      if (!currentUser) throw new Error('No user logged in');
+      const userRef = doc(db, 'users', currentUser.uid);
+      await updateDoc(userRef, {
+        name: profileData.name,
+        bio: profileData.bio,
+        availability: profileData.availability,
+        skillsOffered: profileData.skillsOffered,
+        skillsWanted: profileData.skillsWanted
+      });
+      setIsEditing(false);
+    } catch (err) {
+      console.error("Error saving profile:", err);
+      alert('Failed to save changes. Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -77,8 +92,12 @@ const Profile = () => {
             <Settings size={18} /> Edit Profile
           </button>
         ) : (
-          <button className="btn btn-primary flex items-center gap-2" onClick={handleSave}>
-            <Save size={18} /> Save Changes
+          <button 
+            className="btn btn-primary flex items-center gap-2" 
+            onClick={handleSave}
+            disabled={loading}
+          >
+            <Save size={18} /> {loading ? 'Saving...' : 'Save Changes'}
           </button>
         )}
       </div>
