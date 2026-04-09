@@ -5,7 +5,7 @@ import UserCard from '../components/UserCard';
 import { MOCK_USERS } from '../data/users';
 import { useAuth } from '../context/AuthContext';
 import { db } from '../firebase';
-import { collection, getDocs } from 'firebase/firestore';
+import { collection, getDocs, addDoc, query, where, serverTimestamp } from 'firebase/firestore';
 
 const Explore = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -13,7 +13,7 @@ const Explore = () => {
   const [loading, setLoading] = useState(true);
   const [connectionMessage, setConnectionMessage] = useState(null);
   const navigate = useNavigate();
-  const { currentUser } = useAuth();
+  const { currentUser, userData } = useAuth();
 
   useEffect(() => {
     const fetchUsers = async () => {
@@ -36,55 +36,41 @@ const Explore = () => {
     fetchUsers();
   }, [currentUser]);
 
-  // Combine: real registered users first, then mocks
-  const realUserEmails = realUsers.map(u => u.email);
-  const mockUsers = MOCK_USERS.filter(u => !realUserEmails.includes(u.email));
-  const allUsers = [...realUsers, ...mockUsers];
-
-  const filteredUsers = allUsers.filter(user => {
-    const term = searchTerm.toLowerCase();
-    const name = user.name || '';
-    const matchesName = name.toLowerCase().includes(term);
-    const offeredSkills = user.skillsOffered || [];
-    const wantedSkills = user.skillsWanted || [];
-    const matchesOffered = offeredSkills.some(skill => skill.toLowerCase().includes(term));
-    const matchesWanted = wantedSkills.some(skill => skill.toLowerCase().includes(term));
-    return matchesName || matchesOffered || matchesWanted;
-  });
-
-  const handleConnect = (user) => {
-    if (localStorage.getItem('isAuthenticated') !== 'true') {
+  const handleConnect = async (user) => {
+    if (!currentUser) {
       navigate('/login');
       return;
     }
 
-    // Get existing requests
-    const existingRequests = JSON.parse(localStorage.getItem('skillSwapRequests') || '[]');
-    
-    // Check if a request already exists between these users
-    const alreadyConnected = existingRequests.some(
-      req => req.senderId === currentUser.id && req.receiverId === user.id
-    );
+    try {
+      // Check if a request already exists between these users in Firestore
+      const q = query(
+        collection(db, 'requests'), 
+        where('senderId', '==', currentUser.uid),
+        where('receiverId', '==', user.uid)
+      );
+      const querySnapshot = await getDocs(q);
 
-    if (alreadyConnected) {
-      setConnectionMessage(`You've already sent a request to ${user.name}!`);
-    } else {
-      // Create new request
-      const newRequest = {
-        id: Date.now(),
-        senderId: currentUser.id,
-        senderName: currentUser.name,
-        receiverId: user.id,
-        skillWanted: user.skillsOffered[0] || 'Any skill', // Taking the first skill for this demo
-        skillOffered: currentUser.skillsOffered[0] || 'Any skill',
-        status: 'pending',
-        time: 'Just now'
-      };
+      if (!querySnapshot.empty) {
+        setConnectionMessage(`You've already sent a request to ${user.name}!`);
+      } else {
+        // Create new request in Firestore
+        await addDoc(collection(db, 'requests'), {
+          senderId: currentUser.uid,
+          senderName: userData?.name || currentUser.displayName || 'Unknown User',
+          receiverId: user.uid,
+          receiverName: user.name,
+          skillWanted: user.skillsOffered?.[0] || 'Any skill',
+          skillOffered: userData?.skillsOffered?.[0] || 'Any skill',
+          status: 'pending',
+          createdAt: serverTimestamp()
+        });
 
-      const updatedRequests = [...existingRequests, newRequest];
-      localStorage.setItem('skillSwapRequests', JSON.stringify(updatedRequests));
-
-      setConnectionMessage(`Connection request sent to ${user.name}!`);
+        setConnectionMessage(`Connection request sent to ${user.name}!`);
+      }
+    } catch (err) {
+      console.error("Error sending connection request:", err);
+      setConnectionMessage("Failed to send request. Please try again.");
     }
 
     setTimeout(() => setConnectionMessage(null), 3000);
