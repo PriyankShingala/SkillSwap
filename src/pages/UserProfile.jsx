@@ -24,7 +24,33 @@ const UserProfile = () => {
   const handleConnect = () => {
     if (localStorage.getItem('isAuthenticated') !== 'true') {
       navigate('/login');
+      return;
+    }
+
+    const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+    const existingRequests = JSON.parse(localStorage.getItem('skillSwapRequests') || '[]');
+    
+    const alreadyConnected = existingRequests.some(
+      req => req.senderId === currentUser.id && req.receiverId === user.id
+    );
+
+    if (alreadyConnected) {
+      alert(`You've already sent a request to ${user.name}!`);
     } else {
+      const newRequest = {
+        id: Date.now(),
+        senderId: currentUser.id,
+        senderName: currentUser.name,
+        receiverId: user.id,
+        skillWanted: user.skillsOffered[0] || 'Any skill',
+        skillOffered: currentUser.skillsOffered[0] || 'Any skill',
+        status: 'pending',
+        time: 'Just now'
+      };
+
+      const updatedRequests = [...existingRequests, newRequest];
+      localStorage.setItem('skillSwapRequests', JSON.stringify(updatedRequests));
+
       alert(`Connection request sent to ${user.name}!`);
     }
   };

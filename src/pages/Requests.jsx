@@ -1,19 +1,38 @@
 import React, { useState } from 'react';
 import { Check, X, Clock } from 'lucide-react';
 
-const MOCK_REQUESTS = [
-  { id: 1, user: 'John Smith', skillWanted: 'React', skillOffered: 'Python', status: 'pending', time: '2 hours ago' },
-  { id: 2, user: 'Sarah Connor', skillWanted: 'HTML/CSS', skillOffered: 'UX Design', status: 'accepted', time: '1 day ago' },
-  { id: 3, user: 'Mike Johnson', skillWanted: 'JavaScript', skillOffered: 'Guitar', status: 'pending', time: '3 days ago' },
-];
-
 const Requests = () => {
-  const [requests, setRequests] = useState(MOCK_REQUESTS);
+  const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+  
+  const [requests, setRequests] = useState(() => {
+    const savedRequests = JSON.parse(localStorage.getItem('skillSwapRequests') || '[]');
+    // Only show requests where the current user is recorded as the receiver
+    const incomingRequests = savedRequests.filter(r => r.receiverId === currentUser.id);
+    
+    // If no incoming requests, we can keep some initial mock data for demo purposes if the user is empty
+    if (incomingRequests.length === 0 && !currentUser.id) {
+      return [
+        { id: 1, senderName: 'John Smith', skillWanted: 'React', skillOffered: 'Python', status: 'pending', time: '2 hours ago' },
+        { id: 2, senderName: 'Sarah Connor', skillWanted: 'HTML/CSS', skillOffered: 'UX Design', status: 'accepted', time: '1 day ago' },
+      ];
+    }
+    return incomingRequests;
+  });
 
   const handleAction = (id, action) => {
-    setRequests(requests.map(req => 
+    // Update local state
+    const updatedRequests = requests.map(req => 
       req.id === id ? { ...req, status: action === 'accept' ? 'accepted' : 'rejected' } : req
-    ));
+    );
+    setRequests(updatedRequests);
+
+    // Sync with global localStorage
+    const allRequests = JSON.parse(localStorage.getItem('skillSwapRequests') || '[]');
+    const globalIndex = allRequests.findIndex(r => r.id === id);
+    if (globalIndex !== -1) {
+      allRequests[globalIndex].status = action === 'accept' ? 'accepted' : 'rejected';
+      localStorage.setItem('skillSwapRequests', JSON.stringify(allRequests));
+    }
   };
 
   const pendingRequests = requests.filter(r => r.status === 'pending');
@@ -40,7 +59,7 @@ const Requests = () => {
             {pendingRequests.map(req => (
               <div key={req.id} className="card flex items-center justify-between" style={{ padding: '1.5rem' }}>
                 <div>
-                  <h4 style={{ fontSize: '1.1rem', marginBottom: '0.25rem' }}>{req.user}</h4>
+                  <h4 style={{ fontSize: '1.1rem', marginBottom: '0.25rem' }}>{req.senderName}</h4>
                   <p style={{ fontSize: '0.9rem', color: 'var(--color-text-secondary)' }}>
                     Wants to learn <span style={{ fontWeight: 600, color: 'var(--color-primary)' }}>{req.skillWanted}</span> • 
                     Can teach <span style={{ fontWeight: 600, color: 'var(--color-secondary)' }}>{req.skillOffered}</span>
@@ -79,7 +98,7 @@ const Requests = () => {
           {pastRequests.map(req => (
             <div key={req.id} className="card flex items-center justify-between" style={{ padding: '1.25rem', opacity: 0.8 }}>
               <div>
-                <h4 style={{ fontSize: '1rem', marginBottom: '0.2rem' }}>{req.user}</h4>
+                <h4 style={{ fontSize: '1.1rem', marginBottom: '0.25rem' }}>{req.senderName}</h4>
                 <p style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)' }}>
                   Exchange: {req.skillWanted} for {req.skillOffered}
                 </p>

@@ -37,8 +37,36 @@ const Explore = () => {
       navigate('/login');
       return;
     }
-    // Mock connecting functionality
-    setConnectionMessage(`Connection request sent to ${user.name}!`);
+
+    // Get existing requests
+    const existingRequests = JSON.parse(localStorage.getItem('skillSwapRequests') || '[]');
+    
+    // Check if a request already exists between these users
+    const alreadyConnected = existingRequests.some(
+      req => req.senderId === currentUser.id && req.receiverId === user.id
+    );
+
+    if (alreadyConnected) {
+      setConnectionMessage(`You've already sent a request to ${user.name}!`);
+    } else {
+      // Create new request
+      const newRequest = {
+        id: Date.now(),
+        senderId: currentUser.id,
+        senderName: currentUser.name,
+        receiverId: user.id,
+        skillWanted: user.skillsOffered[0] || 'Any skill', // Taking the first skill for this demo
+        skillOffered: currentUser.skillsOffered[0] || 'Any skill',
+        status: 'pending',
+        time: 'Just now'
+      };
+
+      const updatedRequests = [...existingRequests, newRequest];
+      localStorage.setItem('skillSwapRequests', JSON.stringify(updatedRequests));
+
+      setConnectionMessage(`Connection request sent to ${user.name}!`);
+    }
+
     setTimeout(() => setConnectionMessage(null), 3000);
   };
 
