@@ -3,6 +3,7 @@ import { Search, Filter, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import UserCard from '../components/UserCard';
 import { MOCK_USERS } from '../data/users';
+import { handleConnect as createConversation } from '../services/ChatService';
 
 const CATEGORIES = ['Programming', 'Design', 'Music', 'Language', 'Marketing', 'Finance', 'Food', 'Fitness'];
 const AVAILABILITIES = ['Mornings', 'Afternoons', 'Evenings', 'Weekdays', 'Weekends', 'Flexible'];
@@ -76,42 +77,24 @@ const Explore = () => {
     );
   };
 
-  const handleConnect = (user) => {
+  const handleConnect = async (user) => {
     if (localStorage.getItem('isAuthenticated') !== 'true') {
       navigate('/login');
       return;
     }
 
-    // Get existing requests
-    const existingRequests = JSON.parse(localStorage.getItem('skillSwapRequests') || '[]');
+    setConnectionMessage(`Connecting you with ${user.name}...`);
     
-    // Check if a request already exists between these users
-    const alreadyConnected = existingRequests.some(
-      req => req.senderId === currentUser.id && req.receiverId === user.id
-    );
-
-    if (alreadyConnected) {
-      setConnectionMessage(`You've already sent a request to ${user.name}!`);
-    } else {
-      // Create new request
-      const newRequest = {
-        id: Date.now(),
-        senderId: currentUser.id,
-        senderName: currentUser.name,
-        receiverId: user.id,
-        skillWanted: user.skillsOffered[0] || 'Any skill', // Taking the first skill for this demo
-        skillOffered: currentUser.skillsOffered[0] || 'Any skill',
-        status: 'pending',
-        time: 'Just now'
-      };
-
-      const updatedRequests = [...existingRequests, newRequest];
-      localStorage.setItem('skillSwapRequests', JSON.stringify(updatedRequests));
-
-      setConnectionMessage(`Connection request sent to ${user.name}!`);
+    try {
+      const conversation = await createConversation(currentUser, user);
+      if (conversation && conversation.id) {
+        navigate(`/chat/${conversation.id}`, { state: { targetUser: user } });
+      }
+    } catch (error) {
+      console.error('Failed to connect:', error);
+      setConnectionMessage(`Failed to connect with ${user.name}.`);
+      setTimeout(() => setConnectionMessage(null), 3000);
     }
-
-    setTimeout(() => setConnectionMessage(null), 3000);
   };
 
   return (

@@ -2,9 +2,32 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Sun, Moon } from 'lucide-react';
 import LogoIcon from './Logo';
+import NotificationDropdown from './NotificationDropdown';
+import { getWallet, updateBalance } from '../services/EconomyService'; // Added for testing economy
+import { Wallet } from 'lucide-react';
 
 const Navbar = () => {
   const [isDarkMode, setIsDarkMode] = useState(false);
+  const [balance, setBalance] = useState(0);
+
+  const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+
+  useEffect(() => {
+    if (currentUser.id) {
+      const wallet = getWallet(currentUser.id);
+      setBalance(wallet.balance);
+    }
+    
+    const handleWalletUpdate = () => {
+      if (currentUser.id) {
+        const wallet = getWallet(currentUser.id);
+        setBalance(wallet.balance);
+      }
+    };
+    
+    window.addEventListener('walletUpdated', handleWalletUpdate);
+    return () => window.removeEventListener('walletUpdated', handleWalletUpdate);
+  }, [currentUser.id]);
 
   useEffect(() => {
     // Check initial state from document element
@@ -57,7 +80,12 @@ const Navbar = () => {
           </button>
 
           {localStorage.getItem('isAuthenticated') === 'true' ? (
-            <div className="flex gap-4">
+            <div className="flex gap-4 items-center">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'var(--color-bg-start)', padding: '0.4rem 0.8rem', borderRadius: '1rem', border: '1px solid var(--color-border)', cursor: 'pointer' }} title="SkillSwap Credits">
+                <Wallet size={16} color="#10B981" />
+                <span style={{ fontWeight: 'bold', color: 'var(--color-text-primary)' }}>{balance}</span>
+              </div>
+              <NotificationDropdown />
               <Link to="/profile" className="btn btn-outline">Profile</Link>
               <button 
                 className="btn btn-primary" 
